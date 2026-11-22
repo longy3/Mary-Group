@@ -1,0 +1,5 @@
+src/**/*.astro text eol=lf
+src/**/*.svelte text eol=lf
+src/**/*.ts text eol=lf
+src/**/*.js text eol=lf
+src/**/*.mjs text eol=lf

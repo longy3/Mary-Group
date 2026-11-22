@@ -30,24 +30,35 @@ type DevPost = {
 let devIndex: Promise<DevPost[]> | undefined;
 
 async function searchDevelopment(keyword: string): Promise<SearchResult[]> {
-	devIndex ??= fetch(url("/dev-search.json")).then((response) => {
-		if (!response.ok) throw new Error("Development search failed");
-		return response.json();
-	}).catch((error) => {
-		devIndex = undefined;
-		throw error;
-	});
+	devIndex ??= fetch(url("/dev-search.json"))
+		.then((response) => {
+			if (!response.ok) throw new Error("Development search failed");
+			return response.json();
+		})
+		.catch((error) => {
+			devIndex = undefined;
+			throw error;
+		});
 	const key = keyword.toLowerCase();
 	const results: SearchResult[] = [];
 	for (const post of await devIndex) {
 		const match = post.body.toLowerCase().indexOf(key);
-		if (match < 0 && ![post.title, post.description, post.category, ...post.tags].some((value) => value?.toLowerCase().includes(key))) continue;
+		if (
+			match < 0 &&
+			![post.title, post.description, post.category, ...post.tags].some(
+				(value) => value?.toLowerCase().includes(key),
+			)
+		)
+			continue;
 		const start = Math.max(0, match - 30);
 		const excerpt = post.description || post.body.slice(start, start + 100);
 		results.push({
 			url: post.url,
 			meta: { title: post.title },
-			excerpt: excerpt.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;"),
+			excerpt: excerpt
+				.replaceAll("&", "&amp;")
+				.replaceAll("<", "&lt;")
+				.replaceAll(">", "&gt;"),
 		});
 		if (results.length >= 20) break;
 	}
@@ -55,7 +66,9 @@ async function searchDevelopment(keyword: string): Promise<SearchResult[]> {
 }
 
 const togglePanel = () => {
-	document.getElementById("search-panel")?.classList.toggle("float-panel-closed");
+	document
+		.getElementById("search-panel")
+		?.classList.toggle("float-panel-closed");
 };
 
 async function search(keyword: string, isDesktop: boolean) {
@@ -65,7 +78,9 @@ async function search(keyword: string, isDesktop: boolean) {
 	failed = false;
 	loading = Boolean(query);
 	if (isDesktop) {
-		document.getElementById("search-panel")?.classList.toggle("float-panel-closed", !query);
+		document
+			.getElementById("search-panel")
+			?.classList.toggle("float-panel-closed", !query);
 	}
 	if (!query) return;
 
@@ -77,7 +92,9 @@ async function search(keyword: string, isDesktop: boolean) {
 			matches = [];
 		} else if (window.pagefind) {
 			const response = await window.pagefind.search(query);
-			matches = await Promise.all(response.results.slice(0, 20).map((item) => item.data()));
+			matches = await Promise.all(
+				response.results.slice(0, 20).map((item) => item.data()),
+			);
 		} else {
 			throw new Error("Search index unavailable");
 		}

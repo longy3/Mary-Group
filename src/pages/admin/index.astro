@@ -2,9 +2,17 @@
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const worker = import.meta.env.PUBLIC_CMS_OAUTH_ORIGIN || "";
 const local = import.meta.env.DEV;
-const dirs = [...new Set(Object.keys(import.meta.glob("../../content/posts/**/*.md")).map(path =>
-  path.slice("../../content/posts/".length).split("/").slice(0,-1).join("/")
-))].sort();
+const dirs = [
+	...new Set(
+		Object.keys(import.meta.glob("../../content/posts/**/*.md")).map((path) =>
+			path
+				.slice("../../content/posts/".length)
+				.split("/")
+				.slice(0, -1)
+				.join("/"),
+		),
+	),
+].sort();
 ---
 <!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width,initial-scale=1" /><meta name="robots" content="noindex,nofollow" /><title>文章管理 · Mary Group</title>
 <link rel="stylesheet" href={base+"/admin/mobile.css"} /><style is:global>body{margin:0;background:#f8f6f0;color:#302c2d}#setup{max-width:42rem;margin:12vh auto;padding:2rem;font:1rem/1.8 system-ui}#setup h1{font-family:Georgia,"Songti SC",serif;color:#813b43}</style>

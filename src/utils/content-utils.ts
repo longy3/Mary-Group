@@ -15,7 +15,8 @@ const demoIds = new Set([
 ]);
 
 function visiblePost({ id, data }: CollectionEntry<"posts">) {
-	if (!showLiteraryExamples && id.startsWith("literary-examples/")) return false;
+	if (!showLiteraryExamples && id.startsWith("literary-examples/"))
+		return false;
 	return (showDemoPosts || !demoIds.has(id)) && !data.draft;
 }
 
