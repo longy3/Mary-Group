@@ -15,7 +15,7 @@ import remarkDirective from "remark-directive"; /* Handle directives */
 import remarkGithubAdmonitionsToDirectives from "remark-github-admonitions-to-directives";
 import remarkMath from "remark-math";
 import remarkSectionize from "remark-sectionize";
-import { expressiveCodeConfig } from "./src/config.ts";
+import { expressiveCodeConfig, siteUrl } from "./src/config.ts";
 import { pluginLanguageBadge } from "./src/plugins/expressive-code/language-badge.ts";
 import { AdmonitionComponent } from "./src/plugins/rehype-component-admonition.mjs";
 import { GithubCardComponent } from "./src/plugins/rehype-component-github-card.mjs";
@@ -24,10 +24,27 @@ import { remarkExcerpt } from "./src/plugins/remark-excerpt.js";
 import { remarkReadingTime } from "./src/plugins/remark-reading-time.mjs";
 import { pluginCustomCopyButton } from "./src/plugins/expressive-code/custom-copy-button.js";
 
+const pages = process.env.GITHUB_PAGES === "true";
+const base = pages ? "/Mary-Group/" : "/";
+const origin = pages ? "https://longy3.github.io" : siteUrl;
+
+// CMS stores portable Markdown image paths. Prefix public uploads only in Pages builds.
+function cmsMediaPaths() {
+	return tree => {
+		function update(node) {
+			if (node.type === "image" && node.url.startsWith("/uploads/")) {
+				node.url = base + node.url.slice(1);
+			}
+			node.children?.forEach(update);
+		}
+		update(tree);
+	};
+}
+
 // https://astro.build/config
 export default defineConfig({
-	site: "https://fuwari.vercel.app/",
-	base: "/",
+	site: origin,
+	base,
 	trailingSlash: "always",
 	integrations: [
 		tailwind({
@@ -100,10 +117,11 @@ export default defineConfig({
 			}
 		}),
         svelte(),
-		sitemap(),
+		...(origin ? [sitemap()] : []),
 	],
 	markdown: {
 		remarkPlugins: [
+			cmsMediaPaths,
 			remarkMath,
 			remarkReadingTime,
 			remarkExcerpt,

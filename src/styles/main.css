@@ -150,3 +150,66 @@
     }
   }
 }
+/* Literary typography shares the existing theme tokens and layout. */
+:root {
+    --literary-serif: "Noto Serif SC", "Source Han Serif SC", "Songti SC", "STSong", "SimSun", "Noto Serif", Georgia, serif;
+    --literary-surface: #e5e8ed;
+}
+
+:root.dark {
+    --literary-surface: #292e39;
+}
+
+.literary-title, .custom-md :is(h1, h2, h3, h4, h5, h6) {
+    font-family: var(--literary-serif);
+    overflow-wrap: anywhere;
+}
+
+.literary-avatar {
+    display: grid;
+    place-items: center;
+    aspect-ratio: 1.25;
+    background: linear-gradient(145deg, var(--literary-surface), var(--card-bg));
+}
+
+.literary-avatar span {
+    display: grid;
+    place-items: center;
+    width: 4rem;
+    height: 4rem;
+    border: 1px solid var(--line-color);
+    border-radius: 50%;
+    color: var(--primary);
+    font: 2rem/1 var(--literary-serif);
+}
+
+.markdown-content.custom-md {
+    font-size: clamp(1.125rem, 1rem + 0.35vw, 1.1875rem);
+    line-height: 1.9;
+    overflow-wrap: break-word;
+}
+
+.markdown-content:lang(zh) {
+    font-family: var(--literary-serif);
+    font-size: clamp(1.15rem, 1rem + 0.45vw, 1.25rem);
+    line-height: 2;
+    line-break: strict;
+    letter-spacing: 0.025em;
+}
+
+.markdown-content > p {
+    margin-block: 0 1.3em;
+}
+
+.markdown-content :is(pre, code, .katex) {
+    letter-spacing: normal;
+}
+
+.markdown-content .katex-display {
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-block: 0.15em;
+}
+
+#banner img { filter: saturate(.72); }
+#sidebar .card-base, #content-wrapper .card-base { box-shadow: 0 3px 16px rgb(29 35 47 / .045); }

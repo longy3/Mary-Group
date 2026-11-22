@@ -1,17 +1,16 @@
 <script lang="ts">
+import { siteConfig } from "../config";
 import { onMount } from "svelte";
 
 import I18nKey from "../i18n/i18nKey";
 import { i18n } from "../i18n/translation";
 import { getPostUrlBySlug } from "../utils/url-utils";
 
-export let tags: string[];
-export let categories: string[];
 export let sortedPosts: Post[] = [];
 
 const params = new URLSearchParams(window.location.search);
-tags = params.has("tag") ? params.getAll("tag") : [];
-categories = params.has("category") ? params.getAll("category") : [];
+const tags = params.getAll("tag");
+const categories = params.getAll("category");
 const uncategorized = params.get("uncategorized");
 
 interface Post {
@@ -19,7 +18,7 @@ interface Post {
 	data: {
 		title: string;
 		tags: string[];
-		category?: string;
+		category?: string | null;
 		published: Date;
 	};
 }
@@ -29,7 +28,7 @@ interface Group {
 	posts: Post[];
 }
 
-let groups: Group[] = [];
+let groups: Group[] | undefined;
 
 function formatDate(date: Date) {
 	const month = (date.getMonth() + 1).toString().padStart(2, "0");
@@ -86,7 +85,10 @@ onMount(async () => {
 </script>
 
 <div class="card-base px-8 py-6">
-    {#each groups as group}
+    {#if groups?.length === 0}
+        <p class="text-75">{siteConfig.lang === "zh_CN" ? "暂无符合条件的文章。" : "No matching articles."}</p>
+    {/if}
+    {#each groups || [] as group}
         <div>
             <div class="flex flex-row w-full items-center h-[3.75rem]">
                 <div class="w-[15%] md:w-[10%] transition text-2xl font-bold text-right text-75">

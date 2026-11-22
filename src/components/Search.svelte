@@ -6,135 +6,108 @@ import { url } from "@utils/url-utils.ts";
 import { onMount } from "svelte";
 import type { SearchResult } from "@/global";
 
+export let hasPosts: boolean;
+
 let keywordDesktop = "";
 let keywordMobile = "";
 let result: SearchResult[] = [];
-let isSearching = false;
-let pagefindLoaded = false;
 let initialized = false;
+let loading = false;
+let failed = false;
+let query = "";
+let requestId = 0;
+const chinese = i18n(I18nKey.search) === "搜索";
 
-const fakeResult: SearchResult[] = [
-	{
-		url: url("/"),
-		meta: {
-			title: "This Is a Fake Search Result",
-		},
-		excerpt:
-			"Because the search cannot work in the <mark>dev</mark> environment.",
-	},
-	{
-		url: url("/"),
-		meta: {
-			title: "If You Want to Test the Search",
-		},
-		excerpt: "Try running <mark>npm build && npm preview</mark> instead.",
-	},
-];
-
-const togglePanel = () => {
-	const panel = document.getElementById("search-panel");
-	panel?.classList.toggle("float-panel-closed");
+type DevPost = {
+	url: string;
+	title: string;
+	description: string;
+	category: string | null;
+	tags: string[];
+	body: string;
 };
 
-const setPanelVisibility = (show: boolean, isDesktop: boolean): void => {
-	const panel = document.getElementById("search-panel");
-	if (!panel || !isDesktop) return;
+let devIndex: Promise<DevPost[]> | undefined;
 
-	if (show) {
-		panel.classList.remove("float-panel-closed");
-	} else {
-		panel.classList.add("float-panel-closed");
-	}
-};
-
-const search = async (keyword: string, isDesktop: boolean): Promise<void> => {
-	if (!keyword) {
-		setPanelVisibility(false, isDesktop);
-		result = [];
-		return;
-	}
-
-	if (!initialized) {
-		return;
-	}
-
-	isSearching = true;
-
-	try {
-		let searchResults: SearchResult[] = [];
-
-		if (import.meta.env.PROD && pagefindLoaded && window.pagefind) {
-			const response = await window.pagefind.search(keyword);
-			searchResults = await Promise.all(
-				response.results.map((item) => item.data()),
-			);
-		} else if (import.meta.env.DEV) {
-			searchResults = fakeResult;
-		} else {
-			searchResults = [];
-			console.error("Pagefind is not available in production environment.");
-		}
-
-		result = searchResults;
-		setPanelVisibility(result.length > 0, isDesktop);
-	} catch (error) {
-		console.error("Search error:", error);
-		result = [];
-		setPanelVisibility(false, isDesktop);
-	} finally {
-		isSearching = false;
-	}
-};
-
-onMount(() => {
-	const initializeSearch = () => {
-		initialized = true;
-		pagefindLoaded =
-			typeof window !== "undefined" &&
-			!!window.pagefind &&
-			typeof window.pagefind.search === "function";
-		console.log("Pagefind status on init:", pagefindLoaded);
-		if (keywordDesktop) search(keywordDesktop, true);
-		if (keywordMobile) search(keywordMobile, false);
-	};
-
-	if (import.meta.env.DEV) {
-		console.log(
-			"Pagefind is not available in development mode. Using mock data.",
-		);
-		initializeSearch();
-	} else {
-		document.addEventListener("pagefindready", () => {
-			console.log("Pagefind ready event received.");
-			initializeSearch();
+async function searchDevelopment(keyword: string): Promise<SearchResult[]> {
+	devIndex ??= fetch(url("/dev-search.json")).then((response) => {
+		if (!response.ok) throw new Error("Development search failed");
+		return response.json();
+	}).catch((error) => {
+		devIndex = undefined;
+		throw error;
+	});
+	const key = keyword.toLowerCase();
+	const results: SearchResult[] = [];
+	for (const post of await devIndex) {
+		const match = post.body.toLowerCase().indexOf(key);
+		if (match < 0 && ![post.title, post.description, post.category, ...post.tags].some((value) => value?.toLowerCase().includes(key))) continue;
+		const start = Math.max(0, match - 30);
+		const excerpt = post.description || post.body.slice(start, start + 100);
+		results.push({
+			url: post.url,
+			meta: { title: post.title },
+			excerpt: excerpt.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;"),
 		});
-		document.addEventListener("pagefindloaderror", () => {
-			console.warn(
-				"Pagefind load error event received. Search functionality will be limited.",
-			);
-			initializeSearch(); // Initialize with pagefindLoaded as false
-		});
-
-		// Fallback in case events are not caught or pagefind is already loaded by the time this script runs
-		setTimeout(() => {
-			if (!initialized) {
-				console.log("Fallback: Initializing search after timeout.");
-				initializeSearch();
-			}
-		}, 2000); // Adjust timeout as needed
+		if (results.length >= 20) break;
 	}
-});
-
-$: if (initialized && keywordDesktop) {
-	(async () => {
-		await search(keywordDesktop, true);
-	})();
+	return results;
 }
 
-$: if (initialized && keywordMobile) {
-	(async () => {
-		await search(keywordMobile, false);
-	})();
+const togglePanel = () => {
+	document.getElementById("search-panel")?.classList.toggle("float-panel-closed");
+};
+
+async function search(keyword: string, isDesktop: boolean) {
+	const id = ++requestId;
+	query = keyword.trim();
+	result = [];
+	failed = false;
+	loading = Boolean(query);
+	if (isDesktop) {
+		document.getElementById("search-panel")?.classList.toggle("float-panel-closed", !query);
+	}
+	if (!query) return;
+
+	try {
+		let matches: SearchResult[];
+		if (import.meta.env.DEV) {
+			matches = await searchDevelopment(query);
+		} else if (!hasPosts) {
+			matches = [];
+		} else if (window.pagefind) {
+			const response = await window.pagefind.search(query);
+			matches = await Promise.all(response.results.slice(0, 20).map((item) => item.data()));
+		} else {
+			throw new Error("Search index unavailable");
+		}
+		if (id === requestId) result = matches;
+	} catch {
+		if (id === requestId) failed = true;
+	} finally {
+		if (id === requestId) loading = false;
+	}
+}
+
+onMount(() => {
+	const ready = () => {
+		initialized = true;
+		const isDesktop = window.matchMedia("(min-width: 1024px)").matches;
+		const keyword = isDesktop ? keywordDesktop : keywordMobile;
+		if (keyword) void search(keyword, isDesktop);
+	};
+	if (import.meta.env.DEV || !hasPosts || window.pagefind) ready();
+	document.addEventListener("pagefindready", ready);
+	document.addEventListener("pagefindloaderror", ready);
+	return () => {
+		document.removeEventListener("pagefindready", ready);
+		document.removeEventListener("pagefindloaderror", ready);
+	};
+});
+
+function updateSearch(event: Event, isDesktop: boolean) {
+	const keyword = (event.currentTarget as HTMLInputElement).value;
+	if (initialized) void search(keyword, isDesktop);
 }
 </script>
 
@@ -144,14 +117,14 @@ $: if (initialized && keywordMobile) {
       dark:bg-white/5 dark:hover:bg-white/10 dark:focus-within:bg-white/10
 ">
     <Icon icon="material-symbols:search" class="absolute text-[1.25rem] pointer-events-none ml-3 transition my-auto text-black/30 dark:text-white/30"></Icon>
-    <input placeholder="{i18n(I18nKey.search)}" bind:value={keywordDesktop} on:focus={() => search(keywordDesktop, true)}
+    <input placeholder="{i18n(I18nKey.search)}" bind:value={keywordDesktop} on:input={(e) => updateSearch(e, true)} on:focus={() => initialized && search(keywordDesktop, true)} aria-label={i18n(I18nKey.search)}
            class="transition-all pl-10 text-sm bg-transparent outline-0
          h-full w-40 active:w-60 focus:w-60 text-black/50 dark:text-white/50"
     >
 </div>
 
 <!-- toggle btn for phone/tablet view -->
-<button on:click={togglePanel} aria-label="Search Panel" id="search-switch"
+<button on:click={togglePanel} aria-label={i18n(I18nKey.search)} id="search-switch"
         class="btn-plain scale-animation lg:!hidden rounded-lg w-11 h-11 active:scale-90">
     <Icon icon="material-symbols:search" class="text-[1.25rem]"></Icon>
 </button>
@@ -166,11 +139,17 @@ top-20 left-4 md:left-[unset] right-4 shadow-2xl rounded-2xl p-2">
       dark:bg-white/5 dark:hover:bg-white/10 dark:focus-within:bg-white/10
   ">
         <Icon icon="material-symbols:search" class="absolute text-[1.25rem] pointer-events-none ml-3 transition my-auto text-black/30 dark:text-white/30"></Icon>
-        <input placeholder="Search" bind:value={keywordMobile}
+        <input placeholder={i18n(I18nKey.search)} aria-label={i18n(I18nKey.search)} bind:value={keywordMobile} on:input={(e) => updateSearch(e, false)}
                class="pl-10 absolute inset-0 text-sm bg-transparent outline-0
                focus:w-60 text-black/50 dark:text-white/50"
         >
     </div>
+
+    {#if query && (loading || failed || result.length === 0)}
+        <p role="status" class="px-3 py-2 text-sm text-75">
+            {loading ? (chinese ? "正在搜索…" : "Searching…") : failed ? (chinese ? "搜索暂不可用。" : "Search is unavailable.") : (chinese ? "没有找到相关的文章。" : "No matching articles.")}
+        </p>
+    {/if}
 
     <!-- search results -->
     {#each result as item}

@@ -1,0 +1,16 @@
+---
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const worker = import.meta.env.PUBLIC_CMS_OAUTH_ORIGIN || "";
+const local = import.meta.env.DEV;
+const dirs = [...new Set(Object.keys(import.meta.glob("../../content/posts/**/*.md")).map(path =>
+  path.slice("../../content/posts/".length).split("/").slice(0,-1).join("/")
+))].sort();
+---
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width,initial-scale=1" /><meta name="robots" content="noindex,nofollow" /><title>文章管理 · Mary Group</title>
+<link rel="stylesheet" href={base+"/admin/mobile.css"} /><style is:global>body{margin:0;background:#f8f6f0;color:#302c2d}#setup{max-width:42rem;margin:12vh auto;padding:2rem;font:1rem/1.8 system-ui}#setup h1{font-family:Georgia,"Songti SC",serif;color:#813b43}</style>
+</head><body data-pagefind-ignore>
+<section id="setup"><h1>Mary Group · 文章管理</h1><p id="status">正在加载编辑器…</p></section>
+<script is:inline define:vars={{base,worker,dirs,local}}>window.CMS_MANUAL_INIT=true;window.blogAdmin={base,worker,dirs,local};</script>
+<script is:inline src={base+"/admin/decap-3.8.3.js"}></script>
+<script is:inline src={base+"/admin/editor.js"}></script>
+</body></html>

@@ -3,16 +3,29 @@ import I18nKey from "@i18n/i18nKey";
 import { i18n } from "@i18n/translation";
 import { getCategoryUrl } from "@utils/url-utils.ts";
 
-// // Retrieve posts and sort them by publication date
+import { showDemoPosts, showLiteraryExamples } from "@/config";
+
+const demoIds = new Set([
+	"draft.md",
+	"expressive-code.md",
+	"guide/index.md",
+	"markdown-extended.md",
+	"markdown.md",
+	"video.md",
+]);
+
+function visiblePost({ id, data }: CollectionEntry<"posts">) {
+	if (!showLiteraryExamples && id.startsWith("literary-examples/")) return false;
+	return (showDemoPosts || !demoIds.has(id)) && !data.draft;
+}
+
 async function getRawSortedPosts() {
-	const allBlogPosts = await getCollection("posts", ({ data }) => {
-		return import.meta.env.PROD ? data.draft !== true : true;
-	});
+	const allBlogPosts = await getCollection("posts", visiblePost);
 
 	const sorted = allBlogPosts.sort((a, b) => {
 		const dateA = new Date(a.data.published);
 		const dateB = new Date(b.data.published);
-		return dateA > dateB ? -1 : 1;
+		return dateB.getTime() - dateA.getTime() || a.slug.localeCompare(b.slug);
 	});
 	return sorted;
 }
@@ -52,9 +65,7 @@ export type Tag = {
 };
 
 export async function getTagList(): Promise<Tag[]> {
-	const allBlogPosts = await getCollection<"posts">("posts", ({ data }) => {
-		return import.meta.env.PROD ? data.draft !== true : true;
-	});
+	const allBlogPosts = await getCollection("posts", visiblePost);
 
 	const countMap: { [key: string]: number } = {};
 	allBlogPosts.forEach((post: { data: { tags: string[] } }) => {
@@ -79,9 +90,7 @@ export type Category = {
 };
 
 export async function getCategoryList(): Promise<Category[]> {
-	const allBlogPosts = await getCollection<"posts">("posts", ({ data }) => {
-		return import.meta.env.PROD ? data.draft !== true : true;
-	});
+	const allBlogPosts = await getCollection("posts", visiblePost);
 	const count: { [key: string]: number } = {};
 	allBlogPosts.forEach((post: { data: { category: string | null } }) => {
 		if (!post.data.category) {

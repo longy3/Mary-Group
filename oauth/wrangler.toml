@@ -1,0 +1,6 @@
+name = "mary-group-oauth"
+main = "worker.mjs"
+compatibility_date = "2025-06-01"
+[vars]
+ALLOWED_ORIGINS = "https://longy3.github.io,http://localhost:4321"
+REPOSITORY = "longy3/Mary-Group"
